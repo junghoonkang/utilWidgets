@@ -1,4 +1,6 @@
 ﻿#pragma once
+#include <windows.h>
+#include <QDir>
 #include <QFile>
 #include <QMenu>
 #include <QLabel>
@@ -10,6 +12,7 @@
 #include <QVBoxLayout>
 #include <QMessageBox>
 #include <QDirIterator>
+#include <QStandardPaths>
 #include <QCoreApplication>
 #include <QProcessEnvironment>
 
@@ -95,6 +98,13 @@ namespace utilWidgets {
             background-color: #444444;
             border: 1px solid #888;
             border-radius: 3px;
+        }
+
+        QToolBar::separator {
+            background: #888888;
+            width: 2px;
+            height: 2px;
+            margin: 4px;
         }
     )";
 
@@ -347,6 +357,45 @@ namespace debug_util {
 
 namespace general_util {
 
+    inline QString userDocPath() {
+        return QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
+    }
+
+    /**
+     * Function to create a directory path and return success status.
+     *
+     * - If the path already exists and is a directory, this function does nothing and returns true.
+     * - If the path points to a file (i.e., has a suffix), it creates the parent directory of the file.
+     * - If the path does not have a suffix (i.e., it's a directory), it creates the full path as-is.
+     *
+     * @param path The target path which may be a file path or directory path.
+     * @return true if the directory exists or was successfully created; false otherwise.
+     */
+    inline bool mkDirPath(const QString& path) {
+        QFileInfo info(path);
+
+        QString dirPath;
+
+        if (info.exists() && info.isDir()) {
+            // case - exists and is a directory
+            dirPath = info.absoluteFilePath();
+        } else if (info.exists() && !info.isDir()) {
+            // case - exists but not a directory
+            dirPath = info.absolutePath();
+        } else {
+            if (!info.suffix().isEmpty()) {
+                // case - not exists and has a suffix
+                dirPath = info.absolutePath();
+            } else {
+                // case - not exists and no suffix
+                dirPath = info.absoluteFilePath();
+            }
+        }
+
+        QDir dir;
+        return dir.mkpath(dirPath);
+    }
+
     /* Function to get the current working directory of the application.
     This function returns the directory where the application is running from.
     The result path is < posix > format.
@@ -366,13 +415,23 @@ namespace general_util {
             qDebug() << filePath;
         }
     */
-    inline QStringList getPythonFilePaths(const QString& rootPath) {
+    inline QStringList getPythonFilePaths(const QString& rootPath,
+                                          const bool recursive = false,
+                                          const bool skipInit = true) {
         QStringList result;
 
-        QDirIterator it(rootPath, QStringList() << "*.py", QDir::Files,
-                        QDirIterator::Subdirectories);
+        QDirIterator::IteratorFlags flags = recursive
+                                            ? QDirIterator::Subdirectories
+                                            : QDirIterator::NoIteratorFlags;
+        QDirIterator it(rootPath, QStringList() << "*.py", QDir::Files, flags);
         while (it.hasNext()) {
-            result << it.next();
+            QString filePath = it.next();
+            QString fileName = QFileInfo(filePath).fileName();
+            // Skip __init__.py files
+            if (skipInit && fileName == "__init__.py") {
+                continue;
+            }
+            result << filePath;
         }
 
         return result;
@@ -394,7 +453,33 @@ namespace general_util {
 
         return proc;
     }
+    /* Get a QProcess object with the current environment variables and PYTHONPATH set to the given paths.
+    This function is useful for running Python scripts with specific PYTHONPATH settings.
+    */
+    inline QProcess* getWorkProcess(const QStringList& pyPaths, QWidget* parent = nullptr) {
+        QProcess* proc = new QProcess(parent);
 
+        // expand the PYTHONPATH environment variable with the given paths
+        QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+        QString fullPath = env.value("PYTHONPATH");
+        for (const QString& pyPath : pyPaths) {
+            if (!fullPath.isEmpty())
+                fullPath += ";";
+            fullPath += pyPath;
+        }
+        env.insert("PYTHONPATH", fullPath);
+
+        proc->setProcessEnvironment(env);
+        proc->setProcessChannelMode(QProcess::MergedChannels);
+        QObject::connect(proc, &QProcess::finished, proc, &QObject::deleteLater);
+
+        return proc;
+    }
+
+    inline void selectInExplorer(const std::wstring& absPath) {
+        std::wstring param = L"/select,\"" + absPath + L"\"";
+        ShellExecuteW(nullptr, L"open", L"explorer.exe", param.c_str(), nullptr, SW_SHOWDEFAULT);
+    }
 
 }   // namespace general_util
 
