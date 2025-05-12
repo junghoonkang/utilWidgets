@@ -40,13 +40,55 @@ namespace utilWidgets {
 
         palette.setColor(QPalette::Light, QColor(70,70,70));
         palette.setColor(QPalette::Mid, QColor(30,30,30));
-        // palette.setColor(QPalette::Dark, Qt::gray);
-        // palette.setColor(QPalette::Shadow, Qt::black);
+        palette.setColor(QPalette::Dark, QColor(20,20,20));
+        palette.setColor(QPalette::Shadow, Qt::black);
 
         return palette;
     }
 
     inline QString darkModeStyleSheet = R"(
+        QScrollBar:vertical {
+            background: #2b2b2b;
+            width: 12px;
+            margin: 0px 0px 0px 0px;
+        }
+        QScrollBar::handle:vertical {
+            background: #5a5a5a;
+            min-height: 20px;
+            border-radius: 4px;
+        }
+        QScrollBar::handle:vertical:hover {
+            background: #787878;
+        }
+        QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+            height: 0px;
+            background: none;
+            border: none;
+        }
+        QScrollBar:horizontal {
+            background: #2b2b2b;
+            height: 12px;
+            margin: 0px 0px 0px 0px;
+        }
+        QScrollBar::handle:horizontal {
+            background: #5a5a5a;
+            min-width: 20px;
+            border-radius: 4px;
+        }
+        QScrollBar::handle:horizontal:hover {
+            background: #787878;
+        }
+        QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
+            width: 0px;
+            background: none;
+            border: none;
+        }
+
+        QLabel:disabled {
+            background-color: #2a2a2a;
+            color: #777777;
+        }
+
         QPushButton {
             background-color: #3c3f41;
             color: white;
@@ -61,6 +103,11 @@ namespace utilWidgets {
         QPushButton:pressed {
             background-color: #2c2f31;
         }
+        QPushButton:disabled {
+            background-color: #2a2a2a;
+            color: #777777;
+            border: 1px solid #444444;
+        }
 
         QLineEdit {
             background-color: #3c3f41;
@@ -72,6 +119,18 @@ namespace utilWidgets {
         QLineEdit:focus {
             border: 1px solid #8e2dc5;
             background-color: #444;
+        }
+        QLineEdit:disabled {
+            background-color: #2a2a2a;
+            color: #777777;
+            border: 1px solid #444444;
+        }
+
+        QTextEdit {
+            background-color: #2b2b2b;
+            color: white;
+            border: 1px solid #5a5a5a;
+            border-radius: 4px;
         }
 
         QComboBox {
@@ -90,6 +149,11 @@ namespace utilWidgets {
             color: white;
             border: 1px solid #5a5a5a;
         }
+        QComboBox:disabled {
+            background-color: #2a2a2a;
+            color: #777777;
+            border: 1px solid #444444;
+        }
 
         QToolButton {
             background-color: transparent;
@@ -98,6 +162,10 @@ namespace utilWidgets {
             background-color: #444444;
             border: 1px solid #888;
             border-radius: 3px;
+        }
+
+        QSplitter::handle {
+            background-color: #5a5a5a;
         }
 
         QToolBar::separator {
@@ -138,8 +206,7 @@ namespace utilWidgets {
             m_label->setContextMenuPolicy(Qt::CustomContextMenu);
             m_label->setAlignment(Qt::AlignCenter);
 
-            m_field = new T();
-            m_field->setParent(this);
+            m_field = new T(this);
             m_field->setMinimumWidth(50);
             m_field->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
 

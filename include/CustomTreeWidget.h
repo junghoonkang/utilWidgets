@@ -316,9 +316,12 @@ public:
         update();
     }
 
-    void addWidget(QWidget* widget) {
+    void addWidget(QWidget* widget, const bool parentToThis = true) {
         if (widget == nullptr) return;
         m_childrenLay->addWidget(widget);
+        if (parentToThis && widget->parent() != this) {
+            widget->setParent(this);
+        }
     }
 
     QList<QWidget*> getWidgets() {
@@ -424,7 +427,9 @@ public:
     void appendRow(TreeWidgetViewItem* child) {
         if (!child || isChild(child)) return;
 
-        child->setParent(this);
+        if (child->parent() != this)
+            child->setParent(this);
+
         m_childrenLay->addWidget(child);
 
         int row = rowCount() - 1;
