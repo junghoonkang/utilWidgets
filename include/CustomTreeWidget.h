@@ -1,36 +1,14 @@
 #pragma once
+#include <QLabel>
 #include <QObject>
 #include <QString>
-#include <QLabel>
+#include <QPainter>
 #include <QLineEdit>
 #include <QPushButton>
-// #include <QMenu>
 #include <QHBoxLayout>
 #include <QVBoxLayout>
-#include <QPainter>
 #include <QScrollArea>
-
-
-class Separator : public QFrame
-{
-    Q_OBJECT
-
-public:
-    explicit Separator(QWidget* parent = nullptr) : QFrame(parent) {}
-    explicit Separator(const QString& direction, QWidget* parent = nullptr) : QFrame(parent) {
-        QFrame::Shape shape;
-        if (direction == "v") {
-            shape = QFrame::VLine;
-        } else if (direction == "h") {
-            shape = QFrame::HLine;
-        }
-        setFrameShape(shape);
-        setFrameShadow(QFrame::Sunken);
-        setLineWidth(1);
-        setMidLineWidth(2);
-    }
-    ~Separator() override = default;
-};
+#include "utils.h"
 
 
 class TreeWidgetViewCollapseButton : public QPushButton

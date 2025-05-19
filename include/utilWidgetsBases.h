@@ -37,6 +37,7 @@ class MessageBoxBase : public QWidget
 
 signals:
     void buttonClicked(QPushButton* btn);
+    void showRequested();
 
 public:
     explicit MessageBoxBase(QWidget* parent = nullptr, const QString& title = "", const QString& msg = "")

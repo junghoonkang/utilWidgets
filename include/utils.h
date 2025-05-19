@@ -3,9 +3,13 @@
 #include <QDir>
 #include <QFile>
 #include <QMenu>
+#include <QStyle>
 #include <QLabel>
+#include <QTimer>
 #include <QWidget>
 #include <QPalette>
+#include <QTextEdit>
+#include <QStatusBar>
 #include <QTextStream>
 #include <QPushButton>
 #include <QHBoxLayout>
@@ -108,6 +112,10 @@ namespace utilWidgets {
             color: #777777;
             border: 1px solid #444444;
         }
+        QPushButton:focus {
+            outline: none;
+            border: 2px solid #8e2dc5;
+        }
 
         QLineEdit {
             background-color: #3c3f41;
@@ -181,6 +189,26 @@ namespace utilWidgets {
         t.setPalette(darkModePalete());
         t.setStyleSheet(darkModeStyleSheet);
     }
+
+
+    class Separator : public QFrame
+    {
+    public:
+        explicit Separator(QWidget* parent = nullptr) : QFrame(parent) {}
+        explicit Separator(const QString& direction, QWidget* parent = nullptr) : QFrame(parent) {
+            QFrame::Shape shape;
+            if (direction == "v") {
+                shape = QFrame::VLine;
+            } else if (direction == "h") {
+                shape = QFrame::HLine;
+            }
+            setFrameShape(shape);
+            setFrameShadow(QFrame::Sunken);
+            setLineWidth(1);
+            setMidLineWidth(2);
+        }
+        ~Separator() override = default;
+    };
 
 
     template <typename T>
@@ -282,9 +310,9 @@ namespace utilWidgets {
     class MessageBox : public MessageBoxBase
     {
     private:
-        QPushButton* m_clickedButton = nullptr;
-
         QHBoxLayout* m_btnLay = nullptr;
+        QPushButton* m_clickedButton = nullptr;
+        QStatusBar* m_statusbar = nullptr;
 
     public:
         explicit MessageBox(QWidget* parent = nullptr, const QString& title = "", const QString& msg = "")
@@ -292,6 +320,12 @@ namespace utilWidgets {
             initUI(title, msg);
         }
         ~MessageBox() override = default;
+
+    protected:
+        void showEvent(QShowEvent* e) override {
+            MessageBoxBase::showEvent(e);
+            emit(showRequested());
+        }
 
         void initUI(const QString& title, const QString& msg) override {
             applyDarkMode(*this);
@@ -303,6 +337,8 @@ namespace utilWidgets {
 
             // controls
             QLabel* msgLb = new QLabel(msg);
+            m_statusbar = new QStatusBar(this);
+            m_statusbar->setHidden(true);
 
             // layouts
             QVBoxLayout* lay = new QVBoxLayout(this);
@@ -312,8 +348,12 @@ namespace utilWidgets {
 
             m_btnLay = new QHBoxLayout(this);
             lay->addLayout(m_btnLay);
+
+            lay->addWidget(new Separator("h", this));
+            lay->addWidget(m_statusbar);
         }
 
+    public:
         QPushButton* clickedButton() {
             return m_clickedButton;
         }
@@ -332,20 +372,40 @@ namespace utilWidgets {
             });
         }
 
+        void setStatusHidden(const bool hidden) {
+            m_statusbar->setHidden(hidden);
+        }
+        void setStatusMessage(const QString& msg) {
+            if (m_statusbar->isHidden()) m_statusbar->show();
+            m_statusbar->showMessage(msg);
+        }
+
     };
 
-
-    inline QString dialog(QWidget* parent = nullptr,
-                          const QString& title = "",
-                          const QString& msg = "",
-                          const QStringList& buttons = {"Ok"}) {
-        QEventLoop loop;
-        QString result;
-
-        MessageBox* box = new MessageBox(parent, title, msg);
+    inline void createDialog(const QString& title,
+                             const QString& msg,
+                             const QStringList& buttons,
+                             const QString& defaultBtn,
+                             MessageBox*& box,
+                             QPushButton*& defaultButton,
+                             QString& result,
+                             QEventLoop& loop,
+                             QWidget* parent = nullptr) {
+        // create dialog box
+        box = new MessageBox(parent, title, msg);
+        // create buttons
         for (QString btnName : buttons) {
             QPushButton* btn = new QPushButton(btnName, box);
             box->addButton(btn);
+            // set default button
+            if (btnName == defaultBtn) {
+                defaultButton = btn;
+            }
+        }
+        // default button settings
+        if (defaultButton) {
+            defaultButton->setDefault(true);
+            defaultButton->setFocusPolicy(Qt::StrongFocus);
         }
 
         QObject::connect(box, &MessageBox::buttonClicked, &loop, [&](QPushButton* btn) {
@@ -353,18 +413,130 @@ namespace utilWidgets {
             loop.quit();
         });
 
+        QObject::connect(box, &MessageBox::showRequested, box, [&box, &defaultButton]() {
+            box->show();
+            box->adjustSize();
+            QWidget* parentWidget = box->parentWidget();
+            if (parentWidget) {
+                QRect parentGeom = parentWidget->geometry();
+                QPoint centerPos = parentGeom.center() - QPoint(box->width() / 2, box->height() / 2);
+                box->move(centerPos);
+            }
+            QTimer::singleShot(0, box, [box]() {
+                box->activateWindow();
+                box->raise();
+                box->setFocus();
+            });
+            if (defaultButton) {
+                QTimer::singleShot(0, defaultButton, [defaultButton]() {
+                    defaultButton->setFocus();
+                });
+            }
+        });
+
+    }
+
+    inline QString dialog(QWidget* parent = nullptr,
+                          const QString& title = "",
+                          const QString& msg = "",
+                          const QStringList& buttons = {"Ok"},
+                          const QString& defaultBtn = "Ok") {
+        QEventLoop loop;
+        QString result;
+        MessageBox* box = nullptr;
+        QPushButton* defaultButton = nullptr;
+
+        createDialog(title, msg, buttons, defaultBtn, box, defaultButton, result, loop, parent);
         box->show();
-        box->adjustSize();
-        if (parent) {
-            QRect parentGeom = parent->geometry();
-            QPoint centerPos = parentGeom.center() - QPoint(box->width() / 2, box->height() / 2);
-            box->move(centerPos);
-        }
 
         loop.exec();
 
         return result;
     }
+
+    inline QString dialog_limited(QWidget* parent = nullptr,
+                                  const QString& title = "",
+                                  const QString& msg = "",
+                                  const QStringList& buttons = {"Ok"},
+                                  const QString& defaultBtn = "Ok",
+                                  const int timeOut = -1) {
+        QEventLoop loop;
+        QString result;
+        MessageBox* box = nullptr;
+        QPushButton* defaultButton = nullptr;
+
+        createDialog(title, msg, buttons, defaultBtn, box, defaultButton, result, loop, parent);
+        box->show();
+
+        QString statusMsgHead = QString("Default Selection : [ %1 ] - ").arg(defaultBtn);
+        int remaining = timeOut / 1000;
+        int* remainingPtr = &remaining;
+        box->setStatusMessage(statusMsgHead + QString("Closing in %1").arg(remaining));
+
+        QTimer* timer = new QTimer(box);
+        QObject::connect(timer, &QTimer::timeout, [&loop, &result, box, &statusMsgHead, &defaultBtn, remainingPtr]() {
+            (*remainingPtr) --;
+            if ((*remainingPtr) <= 0) {
+                result = defaultBtn;
+                box->close();
+                loop.quit();
+            } else {
+                box->setStatusMessage(statusMsgHead + QString("Closing in %1").arg((*remainingPtr)));
+            }
+        });
+
+        timer->start(1000);
+        loop.exec();
+
+        return result;
+    }
+
+
+    class LogView : public QWidget
+    {
+    private:
+        QTextEdit* m_logField = nullptr;
+
+    public:
+        explicit LogView(QWidget* parent = nullptr) : QWidget(parent) {
+            initUI();
+        }
+        ~LogView() = default;
+
+        void initUI() {
+            // controls
+            QPushButton* clearBtn = new QPushButton(this);
+            clearBtn->setIcon(this->style()->standardPixmap(QStyle::SP_TrashIcon));
+            clearBtn->setFixedSize(QSize(20,20));
+            clearBtn->setToolTip("Clear Log Field");
+
+            m_logField = new QTextEdit(this);
+            m_logField->setLineWrapMode(QTextEdit::NoWrap);
+            m_logField->setReadOnly(true);
+
+            // layouts
+            QVBoxLayout* lay = new QVBoxLayout(this);
+            lay->setSpacing(2);
+            lay->setContentsMargins(1,1,1,1);
+            setLayout(lay);
+
+            QHBoxLayout* topLay = new QHBoxLayout(this);
+            lay->addLayout(topLay);
+
+            topLay->addWidget(new QLabel(" Log ", this));
+            topLay->addWidget(clearBtn);
+
+            lay->addWidget(m_logField);
+
+            // connections
+            connect(clearBtn, &QPushButton::clicked, m_logField, &QTextEdit::clear);
+        }
+
+        QTextEdit* getField() const {
+            return m_logField;
+        }
+
+    };
 
 }   // namespace utilWidgets
 
