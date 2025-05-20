@@ -211,6 +211,9 @@ namespace utilWidgets {
     };
 
 
+    using ComboBox = ComboBoxBase;
+
+
     template <typename T>
     class OverrideFieldWidget : public OverrideFieldWidgetBase {
 

@@ -1,5 +1,6 @@
 #pragma once
 #include <QWidget>
+#include <QComboBox>
 #include <QPushButton>
 
 
@@ -49,3 +50,21 @@ public:
 protected:
     virtual void initUI(const QString& title, const QString& msg) {}
 };
+
+
+class ComboBoxBase : public QComboBox {
+    Q_OBJECT
+signals:
+    void popuped();
+
+public:
+    explicit ComboBoxBase(QWidget* parent = nullptr) : QComboBox(parent) {};
+    ~ComboBoxBase() = default;
+
+protected:
+    void mousePressEvent(QMouseEvent* event) override {
+        emit popuped();
+        QComboBox::mousePressEvent(event);
+    }
+};
+
