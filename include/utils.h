@@ -546,23 +546,6 @@ namespace utilWidgets {
 
 namespace debug_util {
 
-    /* Function to read an ASCII file and return its content as a QString.
-    This function opens the specified file in read-only mode, reads its content,
-    and returns it as a QString.
-    */
-    inline QString readAsciiFile(const QString& path) {
-        QString code = "";
-
-        QFile scriptFile(path);
-        if (scriptFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
-            QTextStream in(&scriptFile);
-            code = in.readAll();
-            scriptFile.close();
-        }
-
-        return code;
-    }
-
     /* show current apps environment variables in a dialog.
     This is useful for debugging purposes, to check if the environment variables are set correctly.
 
@@ -598,6 +581,23 @@ namespace debug_util {
 
 
 namespace general_util {
+
+    /* Function to read an ASCII file and return its content as a QString.
+    This function opens the specified file in read-only mode, reads its content,
+    and returns it as a QString.
+    */
+    inline QString readAsciiFile(const QString& path) {
+        QString code = "";
+
+        QFile scriptFile(path);
+        if (scriptFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+            QTextStream in(&scriptFile);
+            code = in.readAll();
+            scriptFile.close();
+        }
+
+        return code;
+    }
 
     inline QString userDocPath() {
         return QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
@@ -713,9 +713,57 @@ namespace general_util {
 
         proc->setProcessEnvironment(env);
         proc->setProcessChannelMode(QProcess::MergedChannels);
-        QObject::connect(proc, &QProcess::finished, proc, &QObject::deleteLater);
 
         return proc;
+    }
+
+    inline bool isRunningPID(const qint64 pid) {
+        HANDLE hProcess = OpenProcess(PROCESS_QUERY_INFORMATION, FALSE, static_cast<DWORD>(pid));
+        if (!hProcess) return false;
+
+        DWORD exitCode = 0;
+        bool isAlive = false;
+        if (GetExitCodeProcess(hProcess, &exitCode)) {
+            isAlive = (exitCode == STILL_ACTIVE);
+        }
+        CloseHandle(hProcess);
+        return isAlive;
+    }
+
+    inline bool killPID(const qint64 pid) {
+        HANDLE hProcess = OpenProcess(PROCESS_TERMINATE, FALSE, static_cast<DWORD>(pid));
+        if (!hProcess) {
+            DWORD error = GetLastError();
+            qWarning() << "Failed to open process for termination. PID:" << pid
+                    << "Error code:" << error;
+            return false;
+        }
+
+        bool result = true;
+        if (!TerminateProcess(hProcess, 1)) {
+            DWORD error = GetLastError();
+            qWarning() << "Failed to terminate process. PID:" << pid
+                    << "Error code:" << error;
+            result = false;
+        }
+
+        CloseHandle(hProcess);
+        return result;
+    }
+
+    inline QString quote(const QString& string) {
+        if (string.isEmpty()) return "\"\"";
+        QString result = string;
+        result.replace('"', "\\\"");
+        if (result.contains(QRegularExpression(R"([\s\"'])"))) {
+            result = "\"" + result + "\"";
+        }
+        return result;
+    }
+
+    inline void openInExplorer(const std::wstring& absPath) {
+        std::wstring param = L"\"" + absPath + L"\"";
+        ShellExecuteW(nullptr, L"open", L"explorer.exe", param.c_str(), nullptr, SW_SHOWDEFAULT);
     }
 
     inline void selectInExplorer(const std::wstring& absPath) {
