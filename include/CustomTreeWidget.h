@@ -500,7 +500,7 @@ public:
     void appendRow(TreeWidgetViewItem* child) {
         if (!child || m_items.contains(child)) return;
         m_items.append(child);
-        child->setIndex(m_items.count() + 1);
+        // child->setIndex(m_items.count() + 1);
         TreeWidgetViewItem::appendRow(child);
     }
 
@@ -535,7 +535,6 @@ signals:
 private:
     QScrollArea* m_mainScroll;
     InvisibleRootItem* m_rootItem;
-    QList<TreeWidgetViewItem*> m_items;
 
 public:
     TreeView(QWidget* parent = nullptr) : QWidget(parent) {
@@ -598,7 +597,6 @@ public:
 
     void clear() {
         m_rootItem->clear();
-        m_items.clear();
     }
 
     void removeRow(TreeWidgetViewItem* item) {
@@ -606,7 +604,6 @@ public:
     }
 
     void appendRow(TreeWidgetViewItem* item) {
-        m_items.append(item);
         m_rootItem->appendRow(item);
         update();
     }
