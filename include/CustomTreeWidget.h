@@ -261,8 +261,9 @@ public:
 
         // tree line
         if (hasChildren() && !m_collapseBtn->isCollapsed()) {
-            int x = m_collapseBtn->mapTo(this, m_collapseBtn->rect().center()).x();
-            int Y = m_collapseBtn->mapTo(this, m_collapseBtn->rect().bottomLeft()).y();
+            QRect collapseBtnRect = m_collapseBtn->rect();
+            int x = m_collapseBtn->mapTo(this, collapseBtnRect.center()).x();
+            int Y = m_collapseBtn->mapTo(this, collapseBtnRect.bottomLeft()).y();
             int y = Y;
             // draw line bg
             QRect lineBgRect = QRect(0, y, x+15, height());
@@ -275,7 +276,7 @@ public:
             painter.drawLine(x, Y, x, y);
         }
 
-        if (m_isHovered) {
+        if (m_isHovered && m_index > -1) {
             painter.drawRect(rect());
         }
 
@@ -511,21 +512,12 @@ public:
     }
 
     void clear() {
-        QList<TreeWidgetViewItem*> children = getChildren();
-        for (TreeWidgetViewItem* child : children) {
-            child->clear();
-            m_childrenLay->removeWidget(child);
-            child->setParent(nullptr);
-            child->deleteLater();
-        }
         m_items.clear();
-        updateCollapseBtnVis();
-        emit(itemCleared());
+        TreeWidgetViewItem::clear();
     }
 
 protected:
     virtual void paintEvent(QPaintEvent* event) override {
-        // TreeWidgetViewItem::paintEvent(event);
         QPainter painter(this);
         painter.fillRect(rect(), m_bgColor);
     }
