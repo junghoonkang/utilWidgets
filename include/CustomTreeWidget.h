@@ -392,7 +392,7 @@ public:
     void updateChildrenIndex() {
         int i = 0;
         for (auto* child : getChildren()) {
-            child->setIndex(m_index + i);
+            child->setIndex(m_index + i + 1);
             child->setLocalIndex(i);
             child->setParentIndex(m_index);
             i ++;
